@@ -1,6 +1,38 @@
 import * as THREE from "three";
 import type { MeshData } from "./types";
 
+/**
+ * Translate a non-indexed position array in place so its bounding-box
+ * center lands on the origin. Source files carry arbitrary model-space
+ * offsets (slicer beds, CAD origins, per-plate assemble transforms), so
+ * without this each file orbits a different point and the grid reference
+ * is lost. Returns the applied offset (subtracted from every vertex).
+ * Translation only — orientation and scale are untouched.
+ */
+export function centerPositions(positions: Float32Array): [number, number, number] {
+  if (positions.length === 0) return [0, 0, 0];
+  let minX = Infinity, minY = Infinity, minZ = Infinity;
+  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+  for (let i = 0; i < positions.length; i += 3) {
+    const x = positions[i], y = positions[i + 1], z = positions[i + 2];
+    if (x < minX) minX = x;
+    if (y < minY) minY = y;
+    if (z < minZ) minZ = z;
+    if (x > maxX) maxX = x;
+    if (y > maxY) maxY = y;
+    if (z > maxZ) maxZ = z;
+  }
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  const cz = (minZ + maxZ) / 2;
+  for (let i = 0; i < positions.length; i += 3) {
+    positions[i] -= cx;
+    positions[i + 1] -= cy;
+    positions[i + 2] -= cz;
+  }
+  return [cx, cy, cz];
+}
+
 export function meshStats(data: MeshData) {
   const dx = data.bboxMax[0] - data.bboxMin[0];
   const dy = data.bboxMax[1] - data.bboxMin[1];

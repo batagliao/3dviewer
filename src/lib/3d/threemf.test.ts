@@ -54,7 +54,9 @@ describe("3mf loading", () => {
     const data = await new Mf3Adapter().load(make3mf(SIMPLE, "1"));
     expect(data.triangleCount).toBe(1);
     expect(data.vertexCount).toBe(3);
-    expect(data.bboxMax).toEqual([10, 10, 0]);
+    // Centered on the origin: original (0..10, 0..10, 0) shifts by (-5, -5, 0).
+    expect(data.bboxMin).toEqual([-5, -5, 0]);
+    expect(data.bboxMax).toEqual([5, 5, 0]);
   });
 
   it("raw ThreeMFLoader throws on the dangling component (reported crash)", () => {
@@ -73,7 +75,8 @@ describe("3mf loading", () => {
   it("fallback parses geometry directly", () => {
     const data = parse3mfGeometryFallback(make3mf(DANGLING_COMPONENT, "2"));
     expect(data.triangleCount).toBe(1);
-    expect(Array.from(data.positions)).toEqual([0, 0, 0, 10, 0, 0, 0, 10, 0]);
+    // Normalized to the origin (bbox center was 5, 5, 0).
+    expect(Array.from(data.positions)).toEqual([-5, -5, 0, 5, -5, 0, -5, 5, 0]);
   });
 
   it("rejects garbage with a clean error", async () => {

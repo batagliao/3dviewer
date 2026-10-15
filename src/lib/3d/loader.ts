@@ -3,6 +3,8 @@ import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 import { ThreeMFLoader } from "three/examples/jsm/loaders/3MFLoader.js";
 import { parse3mfProject } from "./threemfProject";
+import { centerPositions } from "./metrics";
+export { centerPositions } from "./metrics";
 import type { MeshData } from "./types";
 
 export interface ModelAdapter {
@@ -18,16 +20,29 @@ function geometryToMeshData(
   const pos = g.getAttribute("position") as THREE.BufferAttribute;
   const nor = g.getAttribute("normal") as THREE.BufferAttribute | undefined;
   const uv = g.getAttribute("uv") as THREE.BufferAttribute | undefined;
-  g.computeBoundingBox();
-  const bb = g.boundingBox!;
+  const positions = new Float32Array(pos.array);
+  // Normalize: every file lands on the origin regardless of its
+  // authoring-space offset (translation only — orientation untouched).
+  centerPositions(positions);
+  let minX = Infinity, minY = Infinity, minZ = Infinity;
+  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+  for (let i = 0; i < positions.length; i += 3) {
+    const x = positions[i], y = positions[i + 1], z = positions[i + 2];
+    if (x < minX) minX = x;
+    if (y < minY) minY = y;
+    if (z < minZ) minZ = z;
+    if (x > maxX) maxX = x;
+    if (y > maxY) maxY = y;
+    if (z > maxZ) maxZ = z;
+  }
   return {
-    positions: new Float32Array(pos.array),
+    positions,
     normals: nor ? new Float32Array(nor.array) : undefined,
     uvs: uv ? new Float32Array(uv.array) : undefined,
     triangleCount: pos.count / 3,
     vertexCount: pos.count,
-    bboxMin: [bb.min.x, bb.min.y, bb.min.z],
-    bboxMax: [bb.max.x, bb.max.y, bb.max.z],
+    bboxMin: [minX, minY, minZ],
+    bboxMax: [maxX, maxY, maxZ],
     hasUvs: !!uv,
     sourceFormat
   };

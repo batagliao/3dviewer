@@ -1,6 +1,7 @@
 import type { MeshData, PlateMesh } from "./types";
 import * as THREE from "three";
 import { unzipSync } from "fflate";
+import { centerPositions } from "./metrics";
 
 interface CompRef {
   objectId: string;
@@ -385,6 +386,13 @@ export function parse3mfProject(bytes: Uint8Array): MeshData {
 
   if (plateMeshes.length === 0) throw new Error("No mesh found in 3MF");
 
+  // Normalize: center each plate on the origin so plate switching and
+  // file switching always orbit the same point (translation only —
+  // orientation and relative part layout within a plate are untouched).
+  // The merged "all plates" view is the concat of the centered plates.
+  for (const p of plateMeshes) {
+    centerPositions(p.positions);
+  }
   const all = mergeParts(plateMeshes.map((p) => p.positions));
   let minX = Infinity, minY = Infinity, minZ = Infinity;
   let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;

@@ -101,10 +101,13 @@ describe("bambu-style 3mf projects", () => {
 
     const [p1, p2] = data.plates!;
     expect(p1.triangleCount).toBe(1);
-    expect(Array.from(p1.positions)).toEqual([0, 0, 0, 10, 0, 0, 0, 10, 0]);
-    // plate 2 geometry: z=5 mesh shifted +256 on x by assemble transform
+    // Each plate is centered on the origin (translation only), so both
+    // plates share the same local coords despite the +256x assemble offset.
+    expect(Array.from(p1.positions)).toEqual([-5, -5, 0, 5, -5, 0, -5, 5, 0]);
+    // plate 2 geometry: z=5 mesh shifted +256 on x by assemble transform,
+    // then re-centered to the origin for display.
     expect(p2.triangleCount).toBe(1);
-    expect(Array.from(p2.positions)).toEqual([256, 0, 5, 266, 0, 5, 256, 10, 5]);
+    expect(Array.from(p2.positions)).toEqual([-5, -5, 0, 5, -5, 0, -5, 5, 0]);
   });
 
   it("adapter resolves the full project (three cannot read p:path)", async () => {
@@ -118,7 +121,11 @@ describe("bambu-style 3mf projects", () => {
     const data = parse3mfProject(bambuBytes(false));
     expect(data.plates).toBeUndefined();
     expect(data.triangleCount).toBe(2);
-    // build transforms still applied: second triangle offset by +256x
-    expect(data.positions[9]).toBe(256);
+    // Single merged plate centered on the origin: bbox center was
+    // (133, 5, 2.5), so the second triangle's first x (256) lands at 123.
+    expect(data.positions[9]).toBe(123);
+    // Merged bbox is symmetric about the origin.
+    expect(data.bboxMin[0]).toBeCloseTo(-133, 10);
+    expect(data.bboxMax[0]).toBeCloseTo(133, 10);
   });
 });
