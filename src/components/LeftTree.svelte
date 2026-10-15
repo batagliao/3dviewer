@@ -1,4 +1,6 @@
 <script lang="ts">
+  import FileIcon from "./FileIcon.svelte";
+  import FolderIcon from "./FolderIcon.svelte";
   import type { FileNode } from "../lib/3d/types";
   import { fileTree, selectedPath, rootPath, status } from "../lib/stores/app";
   import { listDirectory } from "../lib/fs/tauriFs";
@@ -50,7 +52,11 @@
   {#snippet node(n: FileNode, sel: string | null)}
     <div class="tree-node">
       <div class={rowClass(n, sel)} on:click={() => expand(n)} on:keydown={(e) => e.key === "Enter" && expand(n)} role="treeitem" aria-selected={sel === n.path} tabindex="0">
-        <span>{n.isDir ? (n.expanded ? "▾" : "▸") : "📄"}</span>
+        {#if n.isDir}
+          <FolderIcon open={!!n.expanded} />
+        {:else}
+          <FileIcon ext={n.name.split(".").pop() ?? ""} />
+        {/if}
         <span>{n.name}</span>
       </div>
       {#if n.isDir && n.expanded && n.children}
