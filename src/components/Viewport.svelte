@@ -21,18 +21,45 @@
   let overlay = "No file loaded — pick a file from the tree or toolbar.";
   let data: MeshData | null = null;
 
+  /** Multi-plate project currently loaded, else null. */
+  $: plates = data?.plates && data.plates.length > 1 ? data.plates : null;
+  $: shownIndex = plates ? Math.min(Math.max($plateIndex, 1), plates.length) : 0;
+
+  function isMultiPlate(d: MeshData | null): d is MeshData & { plates: NonNullable<MeshData["plates"]> } {
+    return !!d?.plates && d.plates.length > 1;
+  }
+
   function showPlate(idx: number) {
     if (!handle || !data) return;
-    if (idx > 0 && data.plates?.[idx - 1]) {
-      const pos = data.plates[idx - 1].positions;
+    if (isMultiPlate(data)) {
+      const clamped = Math.min(Math.max(idx, 1), data.plates.length);
+      const p = data.plates[clamped - 1];
       const geo = new THREE.BufferGeometry();
-      geo.setAttribute("position", new THREE.BufferAttribute(pos.slice(), 3));
+      geo.setAttribute("position", new THREE.BufferAttribute(p.positions.slice(), 3));
       geo.computeVertexNormals();
       handle.setModel(geo);
+      if (handle.mesh) fitCameraToObject(handle.camera, controls!, handle.mesh);
+      status.set({ state: "ready", message: `Plate ${clamped}/${data.plates.length} (${p.name}) — ${p.triangleCount.toFixed(0)} tris` });
     } else {
       handle.setModel(meshDataToGeometry(data));
+      if (handle.mesh) fitCameraToObject(handle.camera, controls!, handle.mesh);
     }
-    if (handle.mesh) fitCameraToObject(handle.camera, controls!, handle.mesh);
+  }
+
+  function goPlate(idx: number) {
+    if (!plates) return;
+    const n = plates.length;
+    plateIndex.set(((idx - 1 + n) % n) + 1);
+  }
+  function prevPlate() { goPlate($plateIndex - 1); }
+  function nextPlate() { goPlate($plateIndex + 1); }
+
+  function onKey(e: KeyboardEvent) {
+    if (!plates) return;
+    const t = e.target as HTMLElement | null;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+    if (e.key === "ArrowLeft") prevPlate();
+    else if (e.key === "ArrowRight") nextPlate();
   }
 
   const unsubs = [
@@ -63,17 +90,20 @@
       const loaded = await loadModel(bytes, ext);
       data = loaded;
       meshData.set(loaded);
-      plateIndex.set(0);
-      handle.setModel(meshDataToGeometry(loaded));
-      if (handle.mesh) fitCameraToObject(handle.camera, controls!, handle.mesh);
-      const plateInfo =
-        loaded.plates && loaded.plates.length > 1
-          ? ` (${loaded.plates.length} plates — use the plate slider)`
-          : "";
-      if (ext.toLowerCase() === "stl" && get(renderMode) === "textured") {
-        status.set({ state: "ready", message: `Loaded ${loaded.triangleCount.toFixed(0)} tris (STL has no textures — showing solid)` });
+      if (isMultiPlate(loaded)) {
+        // Multi-plate project: start on Plate 1, never on a merged view.
+        // set() may no-op when the previous file left the same value,
+        // so render directly to guarantee the new file shows.
+        plateIndex.set(1);
+        showPlate(1);
       } else {
-        status.set({ state: "ready", message: `Loaded ${loaded.triangleCount.toFixed(0)} tris${plateInfo}` });
+        plateIndex.set(0);
+        showPlate(0);
+        if (ext.toLowerCase() === "stl" && get(renderMode) === "textured") {
+          status.set({ state: "ready", message: `Loaded ${loaded.triangleCount.toFixed(0)} tris (STL has no textures — showing solid)` });
+        } else {
+          status.set({ state: "ready", message: `Loaded ${loaded.triangleCount.toFixed(0)} tris` });
+        }
       }
       overlay = "";
     } catch (e) {
@@ -111,4 +141,32 @@
   {#if overlay}
     <div class="overlay"><pre>{overlay}</pre></div>
   {/if}
+  {#if plates && !overlay}
+    <div class="plate-pill">Plate {shownIndex} / {plates.length} · {plates[shownIndex - 1].name}</div>
+    <button class="plate-nav left" aria-label="Previous plate" on:click={prevPlate}>‹</button>
+    <button class="plate-nav right" aria-label="Next plate" on:click={nextPlate}>›</button>
+  {/if}
 </div>
+<svelte:window on:keydown={onKey} />
+
+<style>
+  .plate-pill {
+    position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+    background: color-mix(in srgb, var(--bg-toolbar) 88%, transparent);
+    border: 1px solid var(--border); border-radius: 999px;
+    padding: 4px 14px; font-size: 12px; color: var(--fg);
+    pointer-events: none; white-space: nowrap;
+  }
+  .plate-nav {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; line-height: 1; padding: 0 0 2px 0;
+    background: color-mix(in srgb, var(--bg-toolbar) 82%, transparent);
+    color: var(--fg); border: 1px solid var(--border);
+    opacity: 0.75; cursor: pointer;
+  }
+  .plate-nav:hover { opacity: 1; border-color: var(--accent); }
+  .plate-nav.left { left: 12px; }
+  .plate-nav.right { right: 12px; }
+</style>
