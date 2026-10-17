@@ -43,4 +43,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+      # tauri::generate_context!() embeds frontendDist ("../dist") at compile
+      # time and panics if the path is missing; the tests need no real assets.
+      - name: Create placeholder frontendDist
+        run: mkdir -p dist
       - run: cargo test --manifest-path src-tauri/Cargo.toml --locked
