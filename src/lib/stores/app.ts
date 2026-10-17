@@ -1,5 +1,6 @@
 import { writable } from "svelte/store";
 import type { MeshData, RenderMode, StatusState, FileNode } from "../3d/types";
+import { DEFAULT_PANEL_WIDTH, type PanelWidths } from "../ui/resize";
 
 export const selectedPath = writable<string | null>(null);
 export const meshData = writable<MeshData | null>(null);
@@ -16,3 +17,8 @@ export const status = writable<{ state: StatusState; message: string }>({
 });
 export const fileTree = writable<FileNode[]>([]);
 export const rootPath = writable<string>("");
+/** Pixel widths of the resizable left/right side panels. */
+export const panelWidths = writable<PanelWidths>({
+  left: DEFAULT_PANEL_WIDTH,
+  right: DEFAULT_PANEL_WIDTH
+});
