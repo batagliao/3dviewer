@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isSupportedFile, sortNodes, filterNodes, insertChildren, toggleExpanded, visibleNodes, adjacentPath } from "./tree";
+import { isSupportedFile, sortNodes, filterNodes, insertChildren, toggleExpanded, visibleNodes, adjacentPath, parentPath, firstChildPath } from "./tree";
 
 describe("tree", () => {
   it("filters to supported 3d files + dirs", () => {
@@ -52,5 +52,30 @@ describe("tree", () => {
     const collapsed = toggleExpanded(tree, "/d");
     expect(visibleNodes(collapsed).map((n) => n.path)).toEqual(["/d", "/b.stl"]);
     expect(adjacentPath(collapsed, "/d", 1)).toBe("/b.stl");
+  });
+
+  it("finds parents and first children", () => {
+    const tree = [
+      {
+        name: "d", path: "/d", isDir: true, loaded: true, expanded: true,
+        children: [
+          { name: "a.stl", path: "/d/a.stl", isDir: false },
+          {
+            name: "e", path: "/d/e", isDir: true, loaded: true, expanded: true,
+            children: [{ name: "c.stl", path: "/d/e/c.stl", isDir: false }]
+          }
+        ]
+      },
+      { name: "b.stl", path: "/b.stl", isDir: false }
+    ];
+    expect(parentPath(tree, "/d/e/c.stl")).toBe("/d/e");
+    expect(parentPath(tree, "/d/a.stl")).toBe("/d");
+    expect(parentPath(tree, "/d")).toBe(null);
+    expect(parentPath(tree, "/b.stl")).toBe(null);
+    expect(parentPath(tree, "/nope")).toBe(null);
+    expect(firstChildPath(tree, "/d")).toBe("/d/a.stl");
+    expect(firstChildPath(tree, "/d/e")).toBe("/d/e/c.stl");
+    expect(firstChildPath(tree, "/b.stl")).toBe(null);
+    expect(firstChildPath(toggleExpanded(tree, "/d"), "/d")).toBe(null);
   });
 });

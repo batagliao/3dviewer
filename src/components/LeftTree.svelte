@@ -4,7 +4,9 @@
   import type { FileNode } from "../lib/3d/types";
   import { fileTree, selectedPath, rootPath, status } from "../lib/stores/app";
   import { listDirectory } from "../lib/fs/tauriFs";
-  import { insertChildren, toggleExpanded, sortNodes, adjacentPath, visibleNodes } from "../lib/fs/tree";
+  import {
+    insertChildren, toggleExpanded, sortNodes, adjacentPath, visibleNodes, parentPath, firstChildPath
+  } from "../lib/fs/tree";
   import { get } from "svelte/store";
 
   // Selecting a dir does not load the viewport.
@@ -31,12 +33,36 @@
     return !!t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable);
   };
 
-  async function move(delta: 1 | -1) {
-    const next = adjacentPath(get(fileTree), get(selectedPath), delta);
+  function nodeAt(tree: FileNode[], path: string | null): FileNode | undefined {
+    return visibleNodes(tree).find((x) => x.path === path);
+  }
+
+  async function select(next: string | null) {
     if (!next) return;
     selectedPath.set(next);
-    const n = visibleNodes(get(fileTree)).find((x) => x.path === next);
+    const n = nodeAt(get(fileTree), next);
     if (n?.isDir) await expand(n, false); // load dir children so it can be entered, keep it open
+    const row = document.querySelector(`.tree-row[data-path="${CSS.escape(next)}"]`);
+    (row as HTMLElement | null)?.scrollIntoView({ block: "nearest" });
+  }
+
+  function move(delta: 1 | -1) {
+    return select(adjacentPath(get(fileTree), get(selectedPath), delta));
+  }
+
+  /** Left/a: collapse a dir, else step out top to the parent row. Right/d: open a dir, or step into it. */
+  async function horizontal(outward: boolean) {
+    const tree = get(fileTree);
+    const n = nodeAt(tree, get(selectedPath));
+    if (!n) return;
+    if (outward) {
+      if (n.isDir && n.expanded) fileTree.update((t) => toggleExpanded(t, n.path));
+      else await select(parentPath(tree, n.path));
+      return;
+    }
+    if (!n.isDir) return;
+    if (!n.expanded) await expand(n);
+    else await select(firstChildPath(get(fileTree), n.path));
   }
 
   function browseKey(e: KeyboardEvent): boolean {
@@ -44,6 +70,8 @@
     const k = e.key.toLowerCase();
     if (k === "arrowup" || k === "w") move(-1);
     else if (k === "arrowdown" || k === "s") move(1);
+    else if (k === "arrowleft" || k === "a") horizontal(true);
+    else if (k === "arrowright" || k === "d") horizontal(false);
     else return false;
     e.preventDefault();
     return true;
@@ -81,7 +109,7 @@
   </div>
   {#snippet node(n: FileNode, sel: string | null)}
     <div class="tree-node">
-      <div class={rowClass(n, sel)} on:click={() => expand(n)} on:keydown={(e) => (e.key === "Enter" ? expand(n) : browseKey(e))} role="treeitem" aria-selected={sel === n.path} tabindex="0">
+      <div class={rowClass(n, sel)} on:click={() => expand(n)} on:keydown={(e) => (e.key === "Enter" ? expand(n) : browseKey(e))} role="treeitem" aria-selected={sel === n.path} tabindex="0" data-path={n.path}>
         {#if n.isDir}
           <FolderIcon open={!!n.expanded} />
         {:else}

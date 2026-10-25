@@ -47,6 +47,29 @@ export function adjacentPath(tree: FileNode[], path: string | null, delta: 1 | -
   return rows[i + delta]?.path ?? null;
 }
 
+/** Containing folder of path; null for a root row or a path not in the tree. */
+export function parentPath(tree: FileNode[], path: string | null): string | null {
+  for (const n of tree) {
+    if (n.path === path) return null;
+    if (n.children) {
+      if (n.children.some((c) => c.path === path)) return n.path;
+      const deeper = parentPath(n.children, path);
+      if (deeper) return deeper;
+    }
+  }
+  return null;
+}
+
+/** First child of an expanded dir, else null. */
+export function firstChildPath(tree: FileNode[], dirPath: string | null): string | null {
+  for (const n of tree) {
+    if (n.path === dirPath) return n.isDir && n.expanded ? n.children?.[0]?.path ?? null : null;
+    const deeper = n.children ? firstChildPath(n.children, dirPath) : null;
+    if (deeper) return deeper;
+  }
+  return null;
+}
+
 export function toggleExpanded(tree: FileNode[], dirPath: string): FileNode[] {
   return tree.map((n) => {
     if (n.path === dirPath) return { ...n, expanded: !n.expanded };

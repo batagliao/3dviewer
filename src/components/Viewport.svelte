@@ -58,8 +58,8 @@
     if (!plates) return;
     const t = e.target as HTMLElement | null;
     if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
-    if (e.key === "ArrowLeft") prevPlate();
-    else if (e.key === "ArrowRight") nextPlate();
+    if (e.key === "PageUp") prevPlate();
+    else if (e.key === "PageDown") nextPlate();
   }
 
   const unsubs = [
