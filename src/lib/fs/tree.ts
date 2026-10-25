@@ -34,6 +34,19 @@ export function insertChildren(
   });
 }
 
+/** Flattened top-to-bottom list of rows the user can see (expanded dirs included). */
+export function visibleNodes(tree: FileNode[]): FileNode[] {
+  return tree.flatMap((n) => (n.isDir && n.expanded && n.children ? [n, ...visibleNodes(n.children)] : [n]));
+}
+
+/** Neighbour of path in flattened row order; null when there is none (or path is not visible). */
+export function adjacentPath(tree: FileNode[], path: string | null, delta: 1 | -1): string | null {
+  const rows = visibleNodes(tree);
+  const i = rows.findIndex((n) => n.path === path);
+  if (i < 0) return null;
+  return rows[i + delta]?.path ?? null;
+}
+
 export function toggleExpanded(tree: FileNode[], dirPath: string): FileNode[] {
   return tree.map((n) => {
     if (n.path === dirPath) return { ...n, expanded: !n.expanded };
